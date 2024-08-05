@@ -1,22 +1,72 @@
 name: CI
+
 on: [push]
 
 jobs:
   sast_scan:
-   name: Run Bandit Scan
-   runs-on: ubuntu-latest
-   
-   steps:
-     - name: Checkout code
-       uses: actions/checkout@v2
-       
-     - name: Set up Python
-       uses: actions/setup-python@v2
-       with:
-         python-version: 3.8
-     
-     - name: Install Bandit
-       run: pip install bandit
-     
-     - name: Run Bandit Scan
-       run: bandit -r . 
+    name: Run Bandit Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
+
+    - name: Install Bandit
+      run: pip install bandit
+
+    - name: Run Bandit Scan      
+      run: bandit -ll -ii -r . -f json -o sast-report.json
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: sast-findings
+        path: sast-report.json
+
+  sca_scan:
+    name: Run Safety for SCA
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+
+      - name: Install Safety
+        run: pip install safety
+
+      - name: Run Safety
+        run: safety check -r requirements.txt --output json > safety-report.json
+
+      - name: Upload Safety Report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: safety-findings
+          path: safety-report.json
+
+  image_scan:
+    name: Build Image and run its scan
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Docker
+      uses: docker-practice/actions-setup-docker@v1
+      with:
+        docker_version: 20.10.7
+
+    - name: Build Docker image
+      run: docker build -t myapp:latest .
